@@ -13,6 +13,18 @@ ensureLibraries <- function() {
   if (!require(tidyr)) {
     stop("The tidyr package is required, but the package does not exist.")
   }
+  
+  if (!require(stringr)) {
+    stop("The stringr package is required, but the package does not exist.")
+  }
+  
+  if (!require(readr)) {
+    stop("The readr package is required, but the package does not exist.")
+  }
+  
+  if (!require(xlsx)) {
+    stop("The readr package is required, but the package does not exist.")
+  }
 }
 
 createDir <- function(dirPath) {
@@ -58,6 +70,18 @@ rawEnrollmentBySubgroupDir <- function() {
   path
 }
 
+rawEconomicDir <- function() {
+  path <- file.path("rawEconomic")
+  createDir(path)
+  path
+}
+
+economicDir <- function() {
+  path <- file.path(dataDir(), "economic")
+  createDir(path)
+  path
+}
+
 enrollmentDir <- function() {
   path <- file.path(dataDir(), "enrollment")
   createDir(path)
@@ -66,6 +90,10 @@ enrollmentDir <- function() {
 
 districtDataFile <- function(rootDir) {
   file.path(rootDir, "district.csv")
+}
+
+economicDataFile <- function() {
+  file.path(enrollmentDir(), "economic.csv")
 }
 
 institutionDataFile <- function(rootDir) {
@@ -181,6 +209,13 @@ rawCPI <- function() {
   cpiData
 }
 
+rawEconomic <- function() {
+  # first row of 2018 has a note in so I need start at row 2.
+  f2019 <- read.xlsx(file.path(rawEconomicDir(), "2019_directly_certified.xls"), sheetIndex = 1)
+  f2018 <- read.xlsx(file.path(rawEconomicDir(), "2018_directly_certified.xls"), sheetIndex = 1, startRow = 2)
+  rbind(f2019, f2018)
+}
+
 rawEnrollment <- function() {
   enrollmentData <- NULL
   for (f in list.files(rawEnrollmentDir())) {
@@ -216,56 +251,63 @@ tidyCPI <- function() {
   ensureLibraries()
   downloadCPI()
   data <- rawCPI() %>%
-    mutate(institution_id = paste0(SCHOOL_DSTRCT_CD, INSTN_NUMBER)) %>%
-    filter(INSTN_NUMBER != "ALL")
-  districtData <- distinct(data, school_district_id=SCHOOL_DSTRCT_CD, school_district_name=SCHOOL_DSTRCT_NM)
+    rename_with(tolower) %>%
+    mutate(institution_id = paste0(school_dstrct_cd, instn_number)) %>%
+    mutate(long_school_year=substr(long_school_year, 1, 4)) %>%
+    filter(instn_number != "ALL")
+  districtData <- data %>%
+    distinct(year=long_school_year, school_district_id=school_dstrct_cd, school_district_name=school_dstrct_nm)
   institutionData <- data %>% 
-    distinct(institution_id, school_district_id=SCHOOL_DSTRCT_CD, institution_code=INSTN_NUMBER, institution_name=INSTN_NAME)
+    distinct(year=long_school_year, institution_id, school_district_id=school_dstrct_cd, institution_code=instn_number, institution_name=instn_name)
   
   write.csv(districtData, districtDataFile(cpiDir()), row.names=FALSE)
   write.csv(institutionData, institutionDataFile(cpiDir()), row.names=FALSE)
   
   certificateLevel <- data %>%
-    filter(DATA_CATEGORY == "Certificate Level") %>%
-    select(institution_id, year=LONG_SCHOOL_YEAR, certificate_level=DATA_SUB_CATEGORY, employee_type=EMPLOYEE_TYPE, count=MEASURE)
+    filter(data_category == "Certificate Level") %>%
+    select(year=long_school_year, institution_id, certificate_level=data_sub_category, employee_type=employee_type, count=measure)
   certifiedPersonnel <- data %>%
-    filter(DATA_CATEGORY == "Certified Personnel") %>%
-    mutate(provisional=(DATA_SUB_CATEGORY=="Provisional")) %>%
-    select(institution_id, year=LONG_SCHOOL_YEAR, provisional, employee_type=EMPLOYEE_TYPE, count=MEASURE)
+    filter(data_category == "Certified Personnel") %>%
+    mutate(provisional=(data_sub_category=="Provisional")) %>%
+    select(year=long_school_year, institution_id, provisional, employee_type=employee_type, count=measure)
   gender <- data %>%
-    filter(DATA_CATEGORY == "Gender") %>%
-    select(institution_id, year=LONG_SCHOOL_YEAR, gender=DATA_SUB_CATEGORY, employee_type=EMPLOYEE_TYPE, count=MEASURE)
+    filter(data_category == "Gender") %>%
+    pivot_wider(names_from = data_sub_category, values_from = measure, names_repair=function(n) {tolower(n)}) %>%
+    select(year=long_school_year, institution_id, employee_type=employee_type, male_count=male, female_count=female)
   employmentStatus <- data %>%
-    filter(DATA_CATEGORY == "Personnel") %>%
-    mutate(fulltime=(DATA_SUB_CATEGORY=="Full-time")) %>%
-    select(institution_id, year=LONG_SCHOOL_YEAR, fulltime, employee_type=EMPLOYEE_TYPE, count=MEASURE)
+    filter(data_category == "Personnel") %>%
+    mutate(fulltime=(data_sub_category=="Full-time")) %>%
+    select(year=long_school_year, institution_id, fulltime, employee_type=employee_type, count=measure)
   adminstrators <- data %>%
-    filter(DATA_CATEGORY == "Positions", EMPLOYEE_TYPE == "Administrators") %>%
-    pivot_wider(names_from = DATA_SUB_CATEGORY, values_from = MEASURE, names_repair=repairName) %>%
-    select(institution_id, year=long_school_year, avg_annual_salary, avg_contract_days,
+    filter(data_category == "Positions", employee_type == "Administrators") %>%
+    pivot_wider(names_from = data_sub_category, values_from = measure, names_repair=repairName) %>%
+    select(year=long_school_year, institution_id, avg_annual_salary, avg_contract_days,
            avg_daily_salary, count=number)
   teachers <- data %>%
-    filter(DATA_CATEGORY == "Positions", EMPLOYEE_TYPE == "PK-12 Teachers") %>%
-    pivot_wider(names_from = DATA_SUB_CATEGORY, values_from = MEASURE, names_repair=repairName) %>%
-    select(institution_id, year=long_school_year, avg_annual_salary, avg_contract_days,
+    filter(data_category == "Positions", employee_type == "PK-12 Teachers") %>%
+    pivot_wider(names_from = data_sub_category, values_from = measure, names_repair=repairName) %>%
+    select(year=long_school_year, institution_id, avg_annual_salary, avg_contract_days,
            avg_daily_salary, count=number)
   supportPersonnel <- data %>%
-    filter(DATA_CATEGORY == "Positions", EMPLOYEE_TYPE == "Support Personnel") %>%
-    pivot_wider(names_from = DATA_SUB_CATEGORY, values_from = MEASURE, names_repair=repairName) %>%
-    select(institution_id, year=long_school_year, avg_annual_salary, avg_contract_days,
+    filter(data_category == "Positions", employee_type == "Support Personnel") %>%
+    pivot_wider(names_from = data_sub_category, values_from = measure, names_repair=repairName) %>%
+    select(year=long_school_year, institution_id, avg_annual_salary, avg_contract_days,
            avg_daily_salary, count=number)
   
   experience <- data %>%
-    filter(DATA_CATEGORY == "Years Experience", DATA_SUB_CATEGORY != "Average") %>%
-    select(institution_id, year=LONG_SCHOOL_YEAR, experience=DATA_SUB_CATEGORY, employee_type=EMPLOYEE_TYPE, count=MEASURE)
+    filter(data_category == "Years Experience", data_sub_category != "Average") %>%
+    select(year=long_school_year, institution_id, experience=data_sub_category, employee_type=employee_type, count=measure)
 
   experienceAvg <- data %>%
-    filter(DATA_CATEGORY == "Years Experience", DATA_SUB_CATEGORY == "Average") %>%
-    select(institution_id, year=LONG_SCHOOL_YEAR, experience=DATA_SUB_CATEGORY, employee_type=EMPLOYEE_TYPE, average=MEASURE)
+    filter(data_category == "Years Experience", data_sub_category == "Average") %>%
+    select(year=long_school_year, institution_id, employee_type=employee_type, average=measure)
   
   raceEthnicity <- data %>%
-    filter(DATA_CATEGORY == "Race/Ethnicity") %>%
-    select(institution_id, year=LONG_SCHOOL_YEAR, race_ethnicity=DATA_SUB_CATEGORY, employee_type=EMPLOYEE_TYPE, count=MEASURE)
+    filter(data_category == "Race/Ethnicity") %>%
+    pivot_wider(names_from = data_sub_category, values_from = measure, names_repair=function(n) {tolower(gsub(" ", "_", n))}) %>%
+    select(year=long_school_year, institution_id, employee_type=employee_type, asian_count=asian, black_count=black, 
+           hispanic_count=hispanic, multiracial_count=multiracial, 
+           native_american_count=native_american, white_count=white)
 
   write.csv(certificateLevel, certificateLevelDataFile(), row.names=FALSE)
   write.csv(certifiedPersonnel, certifiedPersonnelDataFile(), row.names=FALSE)
@@ -296,6 +338,7 @@ tidyEnrollment <- function() {
   
   data <- rawEnrollment()  %>%
     rename_with(tolower) %>%
+    mutate(long_school_year=substr(long_school_year, 1, 4)) %>%
     filter(detail_lvl_desc=="School") %>%
     mutate(institution_id = paste0(school_dstrct_cd, instn_number))
   
@@ -307,14 +350,42 @@ tidyEnrollment <- function() {
   write.csv(institutionData, institutionDataFile(enrollmentDir()), row.names=FALSE)
 
   enrollment <- data %>%
-    select(institution_id, year=long_school_year, period=enrollment_period, grade_level, count=enrollment_count)
+    select(year=long_school_year, institution_id, period=enrollment_period, grade_level, count=enrollment_count)
   
   gradesServedTbl <- tibble::as_tibble(t(sapply(data$grades_served_desc, gradesServedMask)))
   rownames(gradesServedTbl) <- NULL
   data <- bind_cols(data, gradesServedTbl)
   gradesServed <- data %>%
-    select(institution_id, year=long_school_year, PK, KK, G01, G02, G03, G04, G05, G06, G07, G08, G09, G10, G11, G12)
+    select(year=long_school_year, institution_id, PK, KK, G01, G02, G03, G04, G05, G06, G07, G08, G09, G10, G11, G12)
   
   write.csv(enrollment, enrollmentDataFile(), row.names=FALSE)
   write.csv(gradesServed, gradesServedDataFile(), row.names=FALSE)
+}
+
+tidyEconomic <- function() {
+  ensureLibraries()
+  if(!file.exists(economicDataFile())) {
+    data <- rawEconomic()  %>%
+      rename_with(tolower) %>%
+      mutate(institution_id=sprintf("%3d%04d", system_id, school_id), school_district_id=sprintf("%d", system_id))
+    
+    economic <- data %>%
+      select(year=fiscal_year, school_district_id, institution_id, institution_name=school_name, direct_certified_percent=direct_cert_perc)
+    
+    write.csv(economic, economicDataFile(), row.names=FALSE)
+  }
+}
+
+getDistrictId <- function(districtName) {
+  districtRecord <- read.csv(districtDataFile(cpiDir())) %>%
+    filter(grepl(districtName, school_district_name, ignore.case = TRUE))
+  districtRecord$school_district_id[1]
+}
+
+getDistrictInstitutions <- function(districtName) {
+  districtId <- getDistrictId(districtName)
+  districtInstitutions <- read.csv(institutionDataFile(enrollmentDir())) %>%
+    filter(school_district_id==districtId) %>%
+    mutate(school_district_id=as.factor(school_district_id), institution_id=as.factor(institution_id), 
+           institution_code=as.factor(institution_code))
 }

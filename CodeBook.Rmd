@@ -1,0 +1,108 @@
+---
+title: "CodeBook"
+author: "John"
+date: "10/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Code Book
+
+### Overview
+
+There are five types of Georgia public school data gathered in this project:
+
+ * district and institution names and identifiers
+ * details about certified personnel
+ * enrollment numbers both total and by subgroup
+ * economic status
+ * Georgia Milestone outcomes
+
+All data is downloaded from the Georgia Governor's Office of Student Achievement [Downloadable Data](https://gosa.georgia.gov/report-card-dashboards-data/downloadable-data) page.
+
+### Raw Data
+
+#### Certified personnel
+Certified personnel files are retrieved for school calendar years 2017-2018 and 2018-2019.
+The retrieved data is formatted as CSV files.
+
+|Variable Name|Variable Label| Data Type |
+|-------------|--------------|-----------|
+| LONG_SCHOOL_YEAR | Long School Year | Character |
+| SCHOOL_DSTRCT_CD | School District Code | Character |
+| SCHOOL_DSTRCT_NM | School District Name | Character |
+| INSTN_NUMBER | Institution Number | Character |
+| INSTN_NAME | Institution Name (e.g., Awtry Middle School) | Character |
+| DATA_CATEGORY | Data Category | Character |
+| DATA_SUB_CATEGORY | Data Subcategory | Character |
+| EMPLOYEE_TYPE | Employee Type | Character |
+| MEASURE | Measure | Numeric |
+
+Long school year is of the form YYYY-YY, e.g., 2018-19
+
+School District Code is generally a three digit number. "ALL" is included for
+summary statistics.
+
+School district name is generally the county name or city name (e.g., Cobb County, Merietta City).
+
+Institution code is generally a thre or four digit number. "ALL" is included for summary
+statistics.
+
+Institution name are short names like "Kell High School".  Some institutions are
+non-schools, e.g., "Central Office."
+
+Data category differentiates between the various types of records. Data category
+has the following values:
+
+ * Certificate Level
+ * Certified Personnel
+ * Gender
+ * Personnel
+ * Positions
+ * Race/Ethnicity
+ * Years Experience
+ 
+Data subcategory takes on different values depending on the data category.  The 
+following table lists these values and what the measure denotes.
+
+| Data Category | Data Subcategory Values | Measure |
+|---------------|-------------------------|---------|
+| "Certificate Level" | "4 Yr Bachelor's", "5 Yr Master's", "6 Yr Specialist's", "7 Yr Doctoral", "Other *"| Count |
+| "Certified Personnel" | Provisional, Professional | Count |
+| Gender | Male, Female | Count |
+| Personnel | Full-time, Part-time | Count |
+| Positions | "Average Annual Salary", "Average Contract Days", "Average Daily Salary", Number | Count for Number, Numeric for the rest |
+| Race/Ethnicity | Number, Black, Hispanic, Multiracial, "Native America", White | Count |
+| "Years Experience" | "< 1", 1-10, 10-20, 20-30, "> 30"| Count |
+
+Employee type differentiates between three types of employees: Administrators,
+"PK-12 Teachers", "Support Personnel"
+
+##### Enrollment
+
+
+### District Institution Names and Identifiers
+
+District and institution names and identifiers are drawn from certified personnel files
+
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

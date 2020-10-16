@@ -1,0 +1,317 @@
+---
+title: "Data Explorations"
+output: html_notebook
+---
+
+# Overview
+I have downloaded for types of data:
+
+ * details about certified personnel
+ * enrollment numbers both total and by subgroup
+ * economic status
+ * Georgia Milestone outcomes
+
+For this data exploration, I'm just going to look at Cobb County School District for 2018.
+I begin downloading the CPI data using tidyCPI().  This data comes from the 
+the Georgia Governor's Office of Student Achievement [Downloadable Data](https://gosa.georgia.gov/report-card-dashboards-data/downloadable-data) site.
+The cleaned-up data is found in the "data/cpi" directory.
+
+I'm going to load the CPI data.
+```{r}
+
+source("getData.R")
+options(dplyr.summarise.inform = FALSE)
+library(kableExtra)
+
+tidyCPI()
+tidyEnrollment()
+tidyEconomic()
+```
+I'm going to create a table for the institutions in Cobb County.  I'll print
+out a summary as a check.
+```{r}
+districtInstitutions <- getDistrictInstitutions("Cobb County")
+summary(districtInstitutions)
+```
+Looks good.  Next I'll load the the average experience table and construct a
+histogram.
+```{r}
+experienceAvg <- merge(read.csv("data/cpi/experienceAvg.csv"), districtInstitutions) %>%
+  filter(year=="2018") %>%
+  select(institution_id, employee_type, average)
+hist(experienceAvg$average, col="green")
+```
+I'll do the same thing, but restrict the histogram to teachers.
+
+```{r}
+teacherExperienceAvg <- experienceAvg %>%
+  filter(employee_type=="PK-12 Teachers") %>%
+  select(institution_id, average)
+hist(teacherExperienceAvg$average, col="green", main="Average Teacher Experience Per School", 
+     xlab="Average Experience")
+```
+The stark difference (nothing above 18) is the result of administrators; they all have a lot of experience.
+The interesting point here is that some institutions have pretty low average experience for teachers.
+
+Next I'll load the the salary table and construct a
+histogram. First for administrators.
+```{r}
+administrators <- merge(read.csv(administratorsDataFile()), districtInstitutions) %>%
+  filter(year=="2018")
+
+hist(administrators$avg_annual_salary, col="green", main="Average Administrator Salary Per School", 
+     xlab="Average Salary")
+
+```
+Next, I'll do the same for teacher salary.
+```{r}
+teachers <- merge(read.csv(teachersDataFile()), districtInstitutions) %>%
+  filter(year=="2018")
+
+hist(teachers$avg_annual_salary, col="green", main="Average Teacher Salary Per School", 
+     xlab="Average Salary")
+
+```
+There is a low salary school -- where is that.
+```{r}
+lowSalary <- teachers %>%
+  filter(avg_annual_salary < 45000)
+
+lowSalary %>%
+  select(institution_name, avg_annual_salary) %>%
+  arrange(avg_annual_salary) %>%
+  kbl() %>%
+  kable_styling()
+
+
+```
+Next, I'll do the same for support personnel salary.
+```{r}
+support <- merge(read.csv(supportPersonnelDataFile()), districtInstitutions) %>%
+  filter(year=="2018")
+
+hist(support$avg_annual_salary, col="green", main="Average Support Personnel Salary Per School", 
+     xlab="Average Salary")
+
+```
+There are some low salary schools -- where are they.
+```{r}
+lowSalary <- support %>%
+  filter(avg_annual_salary < 50000)
+
+lowSalary %>%
+  select(institution_name, avg_annual_salary) %>%
+  arrange(avg_annual_salary) %>%
+  kbl() %>%
+  kable_styling()
+
+
+```
+Next, I'll look at enrollment.  I'll at just the fall.
+```{r}
+enrollment <- merge(read.csv(enrollmentDataFile()), districtInstitutions) %>%
+  filter(year=="2018", period=="Fall") %>%
+  group_by(institution_id) %>%
+  summarize(total = sum(count))
+
+hist(enrollment$total, col="green", main="Total Enrollment Per Per School", 
+     xlab="Enrollment All Grades")
+```
+Next, I'll look at students per teacher.
+```{r}
+studentTeacherRatio <- merge(enrollment, teachers) %>%
+  mutate(ratio=total/count)
+
+hist(studentTeacherRatio$ratio, col="green", main="Student/Teacher Ratio", 
+    xlab="Ratio")
+
+```
+There are some schools with high student teacher ratios.
+```{r}
+highStudentTeacherRatio <- studentTeacherRatio %>%
+  filter(ratio > 18)
+
+highStudentTeacherRatio %>%
+  select(institution_name, ratio) %>%
+  arrange(ratio) %>%
+  kbl() %>%
+  kable_styling()
+
+```
+Next, I'll look at student economic data.  These are direct certified percentages.
+```{r}
+economic <- merge(read.csv(economicDataFile()), districtInstitutions) %>%
+  filter(year=="2018")
+
+hist(economic$direct_certified_percent, col="green", main="Directly Certified Percentage", 
+    xlab="Percentage")
+
+```
+I'll look at the ones above 40%.
+```{r}
+highPercent <- economic %>%
+  filter(direct_certified_percent > 35)
+
+highPercent %>%
+  select(institution_name, percentage=direct_certified_percent) %>%
+  arrange(percentage) %>%
+  kbl() %>%
+  kable_styling()
+
+
+```
+
+
+
+```{r}
+
+lowExperience <- teacherExperienceAvg %>%
+  filter(average < 10.0)
+
+teacherSalary <- merge(lowExperience, read.csv(teachersDataFile()) %>%
+  filter(year=="2018") %>%
+  select(institution_id, avg_annual_salary, count))
+
+administratorSpend <- merge(lowExperience, read.csv(administratorsDataFile()) %>%
+  filter(year=="2018") %>%
+  select(institution_id, avg_annual_salary, count)) %>%
+  group_by(institution_id) %>%
+  summarize(totalAdministratorSpend = avg_annual_salary*count)
+
+supportPersonnelSpend <- merge(lowExperience, read.csv(supportPersonnelDataFile()) %>%
+  filter(year=="2018") %>%
+  select(institution_id, avg_annual_salary, count)) %>%
+  group_by(institution_id) %>%
+  summarize(totalSupportSpend = avg_annual_salary*count)
+
+teacherSpend <- teacherSalary %>%
+  group_by(institution_id) %>%
+  summarize(totalTeacherSpend = avg_annual_salary*count)
+
+spend <- merge(administratorSpend, merge(supportPersonnelSpend, teacherSpend)) %>%
+  mutate(totalSpend=totalAdministratorSpend+totalSupportSpend+totalTeacherSpend) %>%
+  select(institution_id, totalSpend, totalTeacherSpend)
+
+enrollment <- merge(lowExperience, read.csv(enrollmentDataFile()) %>%
+  filter(year=="2018", period=="Fall")) %>%
+  group_by(institution_id) %>%
+  summarize(total = sum(count))
+
+investmentPerStudent <- merge(spend, enrollment) %>%
+  mutate(overall_ips = totalSpend/total, teacher_ips=totalTeacherSpend/total) %>%
+  select(institution_id, overall_ips, teacher_ips)
+
+economic <- read.csv(economicDataFile()) %>%
+  filter(year=="2018")
+
+merge(merge(merge(merge(lowExperience, districtInstitutions), economic), teacherSalary), investmentPerStudent) %>%
+  select(institution_name, direct_certified_percent, average, salary=avg_annual_salary, 
+         overall_ips, teacher_ips) %>%
+  arrange(teacher_ips) %>%
+  kbl() %>%
+  kable_styling()
+
+
+```
+So the schools with a lot of economic disadvantaged students have pretty low experience levels.  What about the highest level of experience.
+```{r}
+
+highExperience <- teacherExperienceAvg %>%
+  filter(average > 16.0)
+
+teacherSalary <- merge(highExperience, read.csv(teachersDataFile()) %>%
+  filter(year=="2018") %>%
+  select(institution_id, avg_annual_salary, count))
+
+administratorSpend <- merge(highExperience, read.csv(administratorsDataFile()) %>%
+  filter(year=="2018") %>%
+  select(institution_id, avg_annual_salary, count)) %>%
+  group_by(institution_id) %>%
+  summarize(totalAdministratorSpend = avg_annual_salary*count)
+
+supportPersonnelSpend <- merge(highExperience, read.csv(supportPersonnelDataFile()) %>%
+  filter(year=="2018") %>%
+  select(institution_id, avg_annual_salary, count)) %>%
+  group_by(institution_id) %>%
+  summarize(totalSupportSpend = avg_annual_salary*count)
+
+teacherSpend <- teacherSalary %>%
+  group_by(institution_id) %>%
+  summarize(totalTeacherSpend = avg_annual_salary*count)
+
+spend <- merge(administratorSpend, merge(supportPersonnelSpend, teacherSpend)) %>%
+  mutate(totalSpend=totalAdministratorSpend+totalSupportSpend+totalTeacherSpend) %>%
+  select(institution_id, totalSpend, totalTeacherSpend)
+
+enrollment <- merge(highExperience, read.csv(enrollmentDataFile()) %>%
+  filter(year=="2018", period=="Fall")) %>%
+  group_by(institution_id) %>%
+  summarize(total = sum(count))
+
+investmentPerStudent <- merge(spend, enrollment) %>%
+  mutate(overall_ips = totalSpend/total, teacher_ips=totalTeacherSpend/total) %>%
+  select(institution_id, overall_ips, teacher_ips)
+
+economic <- read.csv(economicDataFile()) %>%
+  filter(year=="2018")
+
+merge(merge(merge(merge(highExperience, districtInstitutions), economic), teacherSalary), investmentPerStudent) %>%
+  select(institution_name, direct_certified_percent, average, avg_annual_salary, 
+         overall_ips, teacher_ips) %>%
+  arrange(teacher_ips) %>%
+  kbl() %>%
+  kable_styling()
+
+```
+
+So the schools with the highest levels of experience have twice that of those with the lowest levels of experience.
+Moreover, their students tend not to be economically disadvanaged.
+```{r}
+midExperience <- teacherExperienceAvg %>%
+  filter(average > 10.0, average < 15)
+
+teacherSalary <- merge(midExperience, read.csv(teachersDataFile()) %>%
+  filter(year=="2018") %>%
+  select(institution_id, avg_annual_salary, count))
+
+administratorSpend <- merge(midExperience, read.csv(administratorsDataFile()) %>%
+  filter(year=="2018") %>%
+  select(institution_id, avg_annual_salary, count)) %>%
+  group_by(institution_id) %>%
+  summarize(totalAdministratorSpend = avg_annual_salary*count)
+
+supportPersonnelSpend <- merge(midExperience, read.csv(supportPersonnelDataFile()) %>%
+  filter(year=="2018") %>%
+  select(institution_id, avg_annual_salary, count)) %>%
+  group_by(institution_id) %>%
+  summarize(totalSupportSpend = avg_annual_salary*count)
+
+teacherSpend <- teacherSalary %>%
+  group_by(institution_id) %>%
+  summarize(totalTeacherSpend = avg_annual_salary*count)
+
+spend <- merge(administratorSpend, merge(supportPersonnelSpend, teacherSpend)) %>%
+  mutate(totalSpend=totalAdministratorSpend+totalSupportSpend+totalTeacherSpend) %>%
+  select(institution_id, totalSpend, totalTeacherSpend)
+
+enrollment <- merge(midExperience, read.csv(enrollmentDataFile()) %>%
+  filter(year=="2018", period=="Fall")) %>%
+  group_by(institution_id) %>%
+  summarize(total = sum(count))
+
+investmentPerStudent <- merge(spend, enrollment) %>%
+  mutate(overall_ips = totalSpend/total, teacher_ips=totalTeacherSpend/total) %>%
+  select(institution_id, overall_ips, teacher_ips)
+
+economic <- read.csv(economicDataFile()) %>%
+  filter(year=="2018")
+
+merge(merge(merge(merge(midExperience, districtInstitutions), economic), teacherSalary), investmentPerStudent) %>%
+  select(institution_name, direct_certified_percent, average, salary=avg_annual_salary, 
+         overall_ips, teacher_ips) %>%
+  arrange(teacher_ips) %>%
+  kbl() %>%
+  kable_styling()
+
+```
+
