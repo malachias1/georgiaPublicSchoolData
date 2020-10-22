@@ -233,13 +233,63 @@ Excel files (.xls).
 The sys_sch, SYSTEM_NAME, SCHOOL_NAME fields are ignored.  The SYSTEM_ID
 SCHOOL_ID variables are used to construct a institution_id.
 
-### Clean Data
+### Tidy Data
 
-### District Institution Names and Identifiers
+|Data Category|Path|
+|-------------|----|
+|Districts | data/districts.csv
+|Schools | data/schools.csv |
+|School Category (e.g Middle School) | data/schools.csv |
+|Grades Served (e.g., KK and 1st) | data/schools.csv |
+|Total Enrollment |data/enrollment/totalEnrollment.csv |
+|Grade Level Enrollment |data/enrollment/gradeLevel.csv |
+|Enrollment by Subgroup |data/enrollment/enrollmentBySubgroup.csv |
+|End of Course Milestones |data/milestones/eoc.csv |
+|End of Grade Milestones |data/milestones/eog.csv |
+|Administrator Salaries and Counts|data/cpi/adminstators.csv|
+|Teacher Salaries and Counts|data/cpi/teachers.csv|
+|Support Personnel Salaries and Counts|data/cpi/supportPersonnel.csv|
+|Years Experience for Administrators, Teachers and Support Personnel | data/cpi/experience.csv|
+|Average Years Experience for Administrators, Teachers and Support Personnel | data/cpi/experienceAvg.csv|
+|Gender Counts for Administrators, Teachers and Support Personnel | data/cpi/gender.csv|
+|Certified Personnel Counts (Provisional or Professional) for Administrators, Teachers and Support Personnel | data/cpi/certifiedPersonnel.csv|
+|Certificate Level Counts for Administrators, Teachers and Support Personnel | data/cpi/certificateLevel.csv|
+|Race and Ethnicity Counts for Administrators, Teachers and Support Personnel | data/cpi/raceEthnicity.csv|
 
-District and institution names and identifiers are drawn from certified personnel files
+### Districts
 
+|Variable Name|Variable Label| Data Type |
+|-------------|--------------|-----------|
+|year|Fiscal Year|integer|
+|school_district_id|Three Digit School District ID| character |
+|school_district_name| School District Name| character |
 
+### Schools
+
+|Variable Name|Variable Label| Data Type |
+|-------------|--------------|-----------|
+|year|Fiscal Year|integer|
+|school_district_id|Three Digit School District ID| character |
+|school_id| School Id (concatination of school_district_id and school_code) | character |
+|school_code| School Code (Institution Number)| character |
+|school_name| School Name | character |
+|PK | Pre-K Served| logical|         
+|KK| Kindergarten Served | logical |
+|G01| 1st Grade Served| logical |
+|G02| 2nd Grade Served| logical |
+|G03| 3rd Grade Served| logical |
+|G04| 4th Grade Served| logical |
+|G05| 5th Grade Served| logical |         
+|G06| 6th Grade Served| logical |
+|G07| 7th Grade Served| logical |
+|G08| 8th Grade Served| logical |
+|G09| 9th Grade Served| logical |
+|G10| 10th Grade Served| logical |
+|G11| 11th Grade Served| logical |
+|G12| 12th Grade Served| logical |
+|category| School Category (e.g., Middle School) | character |
+|period| Fall or Spring| character |
+|total|Total Fall Enrollment| integer |
 
 ## Including Plots
 

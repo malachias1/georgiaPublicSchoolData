@@ -257,6 +257,21 @@ tidyCPI <- function() {
   write.csv(raceEthnicity, raceEthnicityDataFile(), row.names=FALSE)
 }
 
+CANONICAL_ACADEMIC_LEVEL_MAP <- c("PK"="Pre-K", "K"="Kindergarten", "KK"="Kindergarten", 
+                                  "01"="1st", "02"="2nd", "03"="3rd", 
+                                  "1"="1st", "2"="2nd", "3"="3rd", 
+                                  "04"="4th", "05"="5th", "06"="6th", "07"="7th", 
+                                  "4"="4th", "5"="5th", "6"="6th", "7"="7th", 
+                                  "08"="8th", "09"="9th", "10"="10th", "11"="11th", "12"="12th",
+                                  "8"="8th", "9"="9th")
+
+stringToCanonicalGradeLevel <- function(academicLevel) {
+  gradeLevel <- CANONICAL_ACADEMIC_LEVEL_MAP[academicLevel]
+  if (is.na(gradeLevel)) {
+    stop(sprintf("Grade level %s, not recognized", academicLevel))
+  }
+  academicLevel
+}
 #
 # Enrollment data should be dealt with first because
 # I create district and institution tables from it.
@@ -298,6 +313,7 @@ tidyEnrollment <- function() {
   # Build grade level enrollment table.
   gradeLevelEnrollment <- data %>%
     distinct(year, school_id, grade_level, count)
+
   
   # Build total enrollment table.
   totalEnrollment <- data %>%
@@ -412,7 +428,8 @@ tidyMilestoneEoC <- function() {
            school_code=instn_number,
            grade_level=acdmc_lvl) %>%
     mutate(year=longSchoolYearToFiscalYear(long_school_year)) %>%
-    mutate(school_id = makeInstitutionId(school_district_id, school_code))
+    mutate(school_id = makeInstitutionId(school_district_id, school_code)) %>%
+    mutate(grade_level=sapply(grade_level, stringToCanonicalGradeLevel))
   
   milestone <- data %>%
     select(year, school_id, grade_level,
@@ -432,7 +449,8 @@ tidyMilestoneEoG <- function() {
            school_code=instn_number,
            grade_level=acdmc_lvl) %>%
     mutate(year=longSchoolYearToFiscalYear(long_school_year)) %>%
-    mutate(school_id = makeInstitutionId(school_district_id, school_code))
+    mutate(school_id = makeInstitutionId(school_district_id, school_code)) %>%
+    mutate(grade_level=sapply(grade_level, stringToCanonicalGradeLevel))
   
   milestone <- data %>%
     select(year, school_id, grade_level,
