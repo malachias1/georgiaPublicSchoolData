@@ -76,26 +76,170 @@ following table lists these values and what the measure denotes.
 | Personnel | Full-time, Part-time | Count |
 | Positions | "Average Annual Salary", "Average Contract Days", "Average Daily Salary", Number | Count for Number, Numeric for the rest |
 | Race/Ethnicity | Number, Black, Hispanic, Multiracial, "Native America", White | Count |
-| "Years Experience" | "< 1", 1-10, 10-20, 20-30, "> 30"| Count |
+| "Years Experience" | "< 1", 1-10, 10-20, 20-30, "> 30", Average | Count for factors, but numeric for average |
 
 Employee type differentiates between three types of employees: Administrators,
 "PK-12 Teachers", "Support Personnel"
 
 ##### Enrollment
+Enrollment files are retrieved for school calendar years 2017-2018 and 2018-2019.
+The retrieved data is formatted as CSV files. 
 
+|Variable Name|Variable Label| Data Type |
+|-------------|--------------|-----------|
+| LONG_SCHOOL_YEAR | Long School Year | Character |
+| DETAIL_LVL_DESC | Detail Level Description | Character |
+| SCHOOL_DSTRCT_CD | School District Code | Character |
+| SCHOOL_DSTRCT_NM | School District Name | Character |
+| INSTN_NUMBER | Institution Number | Character |
+| INSTN_NAME | Institution Name (e.g., Awtry Middle School) | Character |
+| GRADES_SERVED_DESC | Grades Served Description | Character |
+| ENROLLMENT_PERIOD | Enrollment Period | Character |
+| GRADE_LEVEL | Grade Level | Character |
+| ENROLLMENT_COUNT | Enrollment Count | Integer |
+
+I ignore everything but those rows with a detail level description of 
+"School".
+
+Long school year is of the form YYYY-YY, e.g., 2018-19.
+
+Grades served description is a string of comma separated grade levels (e.g., "PK,KK,01,02")
+
+Enrollment period is one of: Fall, Spring
+Grade level is one of: PK, KK, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12.
+
+##### Enrollment by Subgroup
+Enrollment by subgroup files are retrieved for school calendar years 2017-2018 and 2018-2019.
+The retrieved data is formatted as CSV files. Note that subgroup names differ from
+those used in Georgia Milestones End-of-Grade and End-of-Course assessments.
+
+|Variable Name|Variable Label| Data Type |
+|-------------|--------------|-----------|
+| DETAIL_LVL_DESC | Detail Level Description | Character |
+| INSTN_NUMBER | Institution Number | Character |
+| SCHOOL_DSTRCT_CD | School District Code | Character |
+| LONG_SCHOOL_YEAR | Long School Year | Character |
+| INSTN_NAME | Institution Name (e.g., Awtry Middle School) | Character |
+| SCHOOL_DSTRCT_NM | School District Name | Character |
+| GRADES_SERVED_DESC | Grades Served Description | Character |
+| ENROLL_PERCENT_ASIAN | Enrollment Percent ASIAN | | |
+| ENROLL_PERCENT_NATIVE | Enrollment Percent NATIVE | Numeric  |
+| ENROLL_PERCENT_BLACK | Enrollment Percent BLACK | Numeric  |
+| ENROLL_PERCENT_HISPANIC | Enrollment Percent HISPANIC | Numeric  |
+| ENROLL_PERCENT_MULTIRACIAL | Enrollment Percent MULTIRACIAL | Numeric  |
+| ENROLL_PERCENT_WHITE | Enrollment Percent WHITE | Numeric  |
+| ENROLL_PERCENT_MIGRANT | Enrollment Percent MIGRANT | Numeric  |
+| ENROLL_PERCENT_ED | Enrollment Percent ED | Numeric  |
+| ENROLL_PERCENT_SWD | Enrollment Percent SWD | Numeric  |
+| ENROLL_PERCENT_LEP | Enrollment Percent LEP | Numeric  |
+| ENROLL_COUNT_REMEDIAL_GR_6_8 | Enrollment Count REMEDIAL_GR_6_8 | Numeric  |
+| ENROLL_PCT_REMEDIAL_GR_6_8 | Enrollment Percent REMEDIAL_GR_6_8 | Numeric  |
+| ENROLL_COUNT_EIP_K_5 | Enrollment Count EIP_K_5 | Numeric  |
+| ENROLL_PERCENT_EIP_K_5 | Enrollment Percent EIP_K_5 | Numeric  |
+| ENROLL_COUNT_REMEDIAL_GR_9_12 | Enrollment Count REMEDIAL_GR_9_12 | Numeric  |
+| ENROLL_PCT_REMEDIAL_GR_9_12 | Enrollment Percent REMEDIAL_GR_9_12 | Numeric  |
+| ENROLL_COUNT_SPECIAL_ED_K12 | Enrollment Count SPECIAL_ED_K12 | Numeric  |
+| ENROLL_PCT_SPECIAL_ED_K12 | Enrollment Percent SPECIAL_ED_K12 | Numeric  |
+| ENROLL_COUNT_ESOL | Enrollment Count ESOL | Numeric  |
+| ENROLL_PCT_ESOL | Enrollment Percent ESOL | Numeric  |
+| ENROLL_COUNT_SPECIAL_ED_PK | Enrollment Count SPECIAL_ED_PK | Numeric  |
+| ENROLL_PCT_SPECIAL_ED_PK | Enrollment Percent SPECIAL_ED_PK | Numeric  |
+| ENROLL_COUNT_VOCATION_9_12 | Enrollment Count VOCATION_9_12 | Numeric  |
+| ENROLL_PCT_VOCATION_9_12 | Enrollment Percent VOCATION_9_12 | Numeric  |
+| ENROLL_COUNT_ALT_PROGRAMS | Enrollment Count ALT_PROGRAMS | Numeric  |
+| ENROLL_PCT_ALT_PROGRAMS | Enrollment Percent ALT_PROGRAMS | Numeric  |
+| ENROLL_COUNT_GIFTED | Enrollment Count GIFTED | Numeric  |
+| ENROLL_PCT_GIFTED | Enrollment Percent GIFTED | Numeric  |
+| ENROLL_PERCENT_MALE | Enrollment Percent MALE | Numeric  |
+| ENROLL_PERCENT_FEMALE | Enrollment Percent FEMALE | Numeric  |
+
+I ignore everything but those rows with a detail level description of 
+"School".
+
+Long school year is of the form YYYY-YY, e.g., 2018-19.
+
+Grades served description is a string of comma separated grade levels (e.g., "PK,KK,01,02")
+
+##### Georgia Milestones End-of-Grade Assessments
+Georgia Milestones End-of-Grade Assessments files are retrieved for school calendar years 2017-2018 and 2018-2019.
+End of grade assessments are performed for grades 3 through 8.
+The retrieved data is formatted as CSV files. Note that subgroup names differ from
+those used in Enrollment by Subgroup.
+
+|Variable Name|Variable Label| Data Type |
+|-------------|--------------|-----------|
+| LONG_SCHOOL_YEAR | Long School Year | Character |
+| SCHOOL_DSTRCT_CD | School District Code | Character |
+| SCHOOL_DSTRCT_NM | School District Name | Character |
+| INSTN_NUMBER | Institution Number | Character |
+| INSTN_NAME | Institution Name (e.g., Awtry Middle School) | Character |
+| ACDMC_LVL | Academic Level | Character |
+| SUBGROUP_NAME | Subgroup Name | Character |
+| TEST_CMPNT_TYP_NM | Test Component Type Name | Character |
+| NUM_TESTED_CNT | Number Tested Count | Numeric  |
+| BEGIN_CNT | Beginning Count | Numeric  |
+| DEVELOPING_CNT | Developing Count | Numeric  |
+| PROFICIENT_CNT | Proficient Count | Numeric  |
+| DISTINGUISHED_CNT | Distinguished Count | Numeric  |
+| BEGIN_PCT | Beginning Percent | Numeric  |
+| DEVELOPING_PCT | Developing Percent | Numeric  |
+| PROFICIENT_PCT | Proficient Percent | Numeric  |
+| DISTINGUISHED_PCT | Distinguished Percent | Numeric  |
+
+##### Georgia Milestones End-of-Course Assessments
+Georgia Milestones End-of-Course Assessments files are retrieved for school calendar years 2017-2018 and 2018-2019.
+End of course assessments are performed for grades 9 through 12.
+The retrieved data is formatted as CSV files. Note that subgroup names differ from
+those used in Enrollment by Subgroup.
+
+|Variable Name|Variable Label| Data Type |
+|-------------|--------------|-----------|
+| LONG_SCHOOL_YEAR | Long School Year | Character |
+| SCHOOL_DSTRCT_CD | School District Code | Character |
+| SCHOOL_DSTRCT_NM | School District Name | Character |
+| INSTN_NUMBER | Institution Number | Character |
+| INSTN_NAME | Institution Name (e.g., Awtry Middle School) | Character |
+| ACDMC_LVL | Academic Level | Character |
+| SUBGROUP_NAME | Subgroup Name | Character |
+| TEST_CMPNT_TYP_NM | Test Component Type Name | Character |
+| NUM_TESTED_CNT | Number Tested Count | Numeric  |
+| BEGIN_CNT | Beginning Count | Numeric  |
+| DEVELOPING_CNT | Developing Count | Numeric  |
+| PROFICIENT_CNT | Proficient Count | Numeric  |
+| DISTINGUISHED_CNT | Distinguished Count | Numeric  |
+| BEGIN_PCT | Beginning Percent | Numeric  |
+| DEVELOPING_PCT | Developing Percent | Numeric  |
+| PROFICIENT_PCT | Proficient Percent | Numeric  |
+| DISTINGUISHED_PCT | Distinguished Percent | Numeric  |
+
+##### Directly Certified
+
+Directly Certified files are retrieved for fiscal years 2017 and 2018, which correspond to 
+school calendar years 2017-18 and 2018-19. The file names are based on school calendar years
+and the internal dates are fiscal years. Theses file are downloaded manually because
+the latest file is not directly downloadable. The files are formatted as Microsoft
+Excel files (.xls).
+
+|Variable Name|Variable Label| Data Type |
+|-------------|--------------|-----------|
+| FISCAL_YEAR | Fiscal Year | Character |
+| sys_sch | Concatenation of school district code and institution number | Character |
+| SYSTEM_ID | School District Code | Character |
+| SYSTEM_NAME | School District Name | Character |
+| SCHOOL_ID | Institution Number | Character |
+| SCHOOL_NAME | Institution Name | Character |
+| direct_cert_perc | Direct certification percent | Numeric |
+
+The sys_sch, SYSTEM_NAME, SCHOOL_NAME fields are ignored.  The SYSTEM_ID
+SCHOOL_ID variables are used to construct a institution_id.
+
+### Clean Data
 
 ### District Institution Names and Identifiers
 
 District and institution names and identifiers are drawn from certified personnel files
 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
 
 ## Including Plots
 

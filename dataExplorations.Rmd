@@ -12,64 +12,76 @@ I have downloaded for types of data:
  * Georgia Milestone outcomes
 
 For this data exploration, I'm just going to look at Cobb County School District for 2018.
-I begin downloading the CPI data using tidyCPI().  This data comes from the 
+I download and cleanup CPI, enrollment, and milestone data.  I was using direcly
+certified data, but I have decided to use economically disadvantaged.
+All data comes from the 
 the Georgia Governor's Office of Student Achievement [Downloadable Data](https://gosa.georgia.gov/report-card-dashboards-data/downloadable-data) site.
-The cleaned-up data is found in the "data/cpi" directory.
+The cleaned-up data is found in the "data" directory in cpi, enrollment, and
+milestone folders.
 
-I'm going to load the CPI data.
+As a check, I'm going to create a table for the institutions in Cobb County.  I'll print
+out a summary as a check.  As a side effect, I will have a list of Cobb Schools.
+I've exclude Devereux Ackerman Academy and Cobb Horizon High School because
+these are unique types of schools.  It may be appropriate to exclude Kennesaw
+Charter as well.
+
 ```{r}
 
 source("getData.R")
+source("features.R")
 options(dplyr.summarise.inform = FALSE)
 library(kableExtra)
 
 tidyCPI()
 tidyEnrollment()
-tidyEconomic()
-```
-I'm going to create a table for the institutions in Cobb County.  I'll print
-out a summary as a check.
-```{r}
-districtInstitutions <- getDistrictInstitutions("Cobb County")
-summary(districtInstitutions)
+tidyEnrollmentBySubgroup()
+tidyMilestoneEoC()
+tidyMilestoneEoG()
+
+cobbSchools <- getDistrictInstitutions("Cobb County", "2018") %>%
+  filter(institution_name!="Devereux Ackerman Academy", institution_name!="Cobb Horizon High School",
+         institution_name != "Kennesaw Charter School")
+
+getDistrictSummary(cobbSchools) %>%
+  select("Category"=it, "Count"=it_count) %>%
+  kbl() %>%
+  kable_styling()
+
 ```
 Looks good.  Next I'll load the the average experience table and construct a
 histogram.
 ```{r}
-experienceAvg <- merge(read.csv("data/cpi/experienceAvg.csv"), districtInstitutions) %>%
-  filter(year=="2018") %>%
-  select(institution_id, employee_type, average)
-hist(experienceAvg$average, col="green")
-```
-I'll do the same thing, but restrict the histogram to teachers.
+avgExp <- getAverageExperience("2018", institutions=cobbSchools) %>%
+  select(institution_id, employee_type, elementary, middle, high, average)
+par(mfrow=c(2,2))
 
-```{r}
-teacherExperienceAvg <- experienceAvg %>%
-  filter(employee_type=="PK-12 Teachers") %>%
-  select(institution_id, average)
-hist(teacherExperienceAvg$average, col="green", main="Average Teacher Experience Per School", 
-     xlab="Average Experience")
+plotAvgExp <- function(data, title) {
+  with(data, hist(average, xlab="Average Experience", main=title))
+}
+
+plotAvgExp(subset(avgExp, employee_type=="Administrators"), "Administrators")
+plotAvgExp(subset(avgExp, employee_type=="PK-12 Teachers" & elementary), "Elementary School Teachers")
+plotAvgExp(subset(avgExp, employee_type=="PK-12 Teachers" & middle), "Middle School Teachers")
+plotAvgExp(subset(avgExp, employee_type=="PK-12 Teachers" & high), "High School Teachers")
 ```
 The stark difference (nothing above 18) is the result of administrators; they all have a lot of experience.
 The interesting point here is that some institutions have pretty low average experience for teachers.
 
-Next I'll load the the salary table and construct a
-histogram. First for administrators.
+Next I'll do the same thing for average annual salary.
 ```{r}
-administrators <- merge(read.csv(administratorsDataFile()), districtInstitutions) %>%
-  filter(year=="2018")
+adminPay <- getAdministrators(2018, cobbSchools)
+teacherPay <- getTeachers(2018, cobbSchools)
 
-hist(administrators$avg_annual_salary, col="green", main="Average Administrator Salary Per School", 
-     xlab="Average Salary")
+par(mfrow=c(2,2))
 
-```
-Next, I'll do the same for teacher salary.
-```{r}
-teachers <- merge(read.csv(teachersDataFile()), districtInstitutions) %>%
-  filter(year=="2018")
+plotAvgSalary <- function(data, title) {
+  with(data, hist(avg_annual_salary, xlab="Average Annual Salary", main=title, breaks=8))
+}
 
-hist(teachers$avg_annual_salary, col="green", main="Average Teacher Salary Per School", 
-     xlab="Average Salary")
+plotAvgSalary(adminPay, "Administrators")
+plotAvgSalary(subset(teacherPay, elementary), "Elementary School Teachers")
+plotAvgSalary(subset(teacherPay, middle), "Middle School Teachers")
+plotAvgSalary(subset(teacherPay, high), "High School Teachers")
 
 ```
 There is a low salary school -- where is that.
@@ -82,236 +94,171 @@ lowSalary %>%
   arrange(avg_annual_salary) %>%
   kbl() %>%
   kable_styling()
-
-
 ```
-Next, I'll do the same for support personnel salary.
+Next, I'll look at fall enrollment.
 ```{r}
-support <- merge(read.csv(supportPersonnelDataFile()), districtInstitutions) %>%
-  filter(year=="2018")
+enrollment <- getEnrollment(2018, cobbSchools)
+esEnrollment <- merge(subset(enrollment, elementary), cobbSchools)
+msEnrollment <- merge(subset(enrollment, middle), cobbSchools)
+hsEnrollment <- merge(subset(enrollment, high), cobbSchools)
 
-hist(support$avg_annual_salary, col="green", main="Average Support Personnel Salary Per School", 
-     xlab="Average Salary")
+par(mfrow=c(2,2))
 
-```
-There are some low salary schools -- where are they.
-```{r}
-lowSalary <- support %>%
-  filter(avg_annual_salary < 50000)
+plotEnrollment <- function(data, title) {
+  with(data %>%
+         group_by(institution_id) %>%
+         summarize(total = sum(count)),
+       hist(total, xlab="Total Enrollment", main=title, breaks=6))
+}
 
-lowSalary %>%
-  select(institution_name, avg_annual_salary) %>%
-  arrange(avg_annual_salary) %>%
-  kbl() %>%
-  kable_styling()
-
-
-```
-Next, I'll look at enrollment.  I'll at just the fall.
-```{r}
-enrollment <- merge(read.csv(enrollmentDataFile()), districtInstitutions) %>%
-  filter(year=="2018", period=="Fall") %>%
-  group_by(institution_id) %>%
-  summarize(total = sum(count))
-
-hist(enrollment$total, col="green", main="Total Enrollment Per Per School", 
-     xlab="Enrollment All Grades")
+plotEnrollment(esEnrollment, "Elementary Schools")
+plotEnrollment(msEnrollment, "Middle Schools")
+plotEnrollment(hsEnrollment, "High Schools")
 ```
 Next, I'll look at students per teacher.
 ```{r}
-studentTeacherRatio <- merge(enrollment, teachers) %>%
+par(mfrow=c(2,2))
+
+plotStudentTeacherRatio <- function(enrollment, teachers, title) {
+  with(merge(enrollment %>%
+               group_by(institution_id) %>%
+               summarize(total = sum(count)),
+             teachers) %>%
+         mutate(ratio=total/count),
+       hist(ratio, xlab="Student/Teacher Ratio", main=title,
+            breaks=c(8, 10, 12, 14, 16, 18, 20, 22)))
+}
+
+plotStudentTeacherRatio(esEnrollment, teachers, "Elementary Schools")
+plotStudentTeacherRatio(msEnrollment, teachers, "Middle Schools")
+plotStudentTeacherRatio(hsEnrollment, teachers, "High Schools")
+```
+There are some schools with low student teacher ratios.
+```{r}
+par(mfrow=c(1,3))
+
+enrollmentBySubgroup <- getEnrollmentBySubgroup(2018, cobbSchools)
+
+plotEnrollmentBySubgroup <- function(enrollment, title) {
+  with(enrollment, {
+    count <- nrow(enrollment)
+    title <- sprintf("%s (%d)", title, count)
+    hist(enroll_percent_ed, xlab="Percent Economically Disadvantaged",
+         main=title, breaks=c(0, 25, 50, 75, 100))
+  })
+}
+
+plotEnrollmentBySubgroup(subset(enrollmentBySubgroup, elementary), "Elementary Schools")
+plotEnrollmentBySubgroup(subset(enrollmentBySubgroup, middle), "Middle Schools")
+plotEnrollmentBySubgroup(subset(enrollmentBySubgroup, high), "High Schools")
+```
+Next we will look at milestones for English language arts for 3rd, 4th, and 5th grades.
+```{r}
+eogEla345Milestones <- getMilestoneEoG(2018, cobbSchools) %>%
+  filter(acdmc_lvl %in% c("3", "4", "5"), 
+         subgroup_name=="All Students", 
+         test_cmpnt_typ_nm=="English Language Arts") %>%
+  mutate(ela_score = developing_pct + proficient_pct + distinguished_pct) %>%
+  mutate(acdmc_lvl=as.factor(acdmc_lvl))
+
+par(mfrow=c(2,2))
+
+plotEogElaMilestones <- function(milestones, lvl, title) {
+  with(milestones %>% filter(acdmc_lvl==lvl),
+       hist(ela_score, xlab="ELA Developing + Proficient + Distinguished", ylim=c(0, 30), 
+            main=title, breaks = c(50, 60, 70, 80, 90, 100)))
+}
+
+plotEogElaMilestones(eogEla345Milestones, "3", "3rd Grade")
+plotEogElaMilestones(eogEla345Milestones, "4", "4th Grade")
+plotEogElaMilestones(eogEla345Milestones, "5", "5th Grade")
+```
+
+
+```{r}
+
+eogEla345MilestonesWithSubgroups <- merge(eogEla345Milestones, enrollmentBySubgroup, by=c("institution_id"))
+
+qplot(enroll_percent_lep, ela_score, data=eogEla345MilestonesWithSubgroups, 
+      facets=.~acdmc_lvl, geom=c("point", "smooth"), 
+      ylab="ELA Developing + Proficient + Distinguished",
+      xlab="Percent Limited English Proficiency")
+
+```
+
+```{r}
+qplot(acdmc_lvl, ela_score, data=eogEla345MilestonesWithSubgroups, 
+      geom="boxplot", 
+      ylab="ELA Developing + Proficient + Distinguished",
+      xlab="Grade")
+
+```
+
+LEP versus ELA
+
+
+Years of experience versus econimically disadvantaged.
+
+```{r}
+
+teacherAvgExp <- subset(avgExp, employee_type=="PK-12 Teachers" & elementary)
+
+teacherAvgExp_enrollmentBySubgroup <- merge(enrollmentBySubgroup, teacherAvgExp)
+
+qplot(enroll_percent_lep, average, data=teacherAvgExp_enrollmentBySubgroup, 
+      ylab="Average Teacher Experience",
+      xlab="Percent Limited English Proficiency") + geom_smooth(method = "lm")
+
+```
+```{r}
+
+eogEla345MilestonesWithAvgExp <- merge(eogEla345Milestones, teacherAvgExp, by=c("institution_id"))
+
+
+qplot(average, ela_score, data=eogEla345MilestonesWithAvgExp, 
+      facets=.~acdmc_lvl, 
+      ylab="ELA Developing + Proficient + Distinguished",
+      xlab="Average Teacher Experience") + geom_smooth(method = "lm")
+
+```
+
+```{r}
+
+studentTeacherRatio <- merge(enrollment %>%
+                               group_by(institution_id) %>%
+                               summarize(total = sum(count)),
+                             teachers) %>%
   mutate(ratio=total/count)
+eogEla345MilestonesWithStudentTeacherRatio <- merge(eogEla345Milestones, studentTeacherRatio, by=c("institution_id"))
 
-hist(studentTeacherRatio$ratio, col="green", main="Student/Teacher Ratio", 
-    xlab="Ratio")
-
-```
-There are some schools with high student teacher ratios.
-```{r}
-highStudentTeacherRatio <- studentTeacherRatio %>%
-  filter(ratio > 18)
-
-highStudentTeacherRatio %>%
-  select(institution_name, ratio) %>%
-  arrange(ratio) %>%
-  kbl() %>%
-  kable_styling()
-
-```
-Next, I'll look at student economic data.  These are direct certified percentages.
-```{r}
-economic <- merge(read.csv(economicDataFile()), districtInstitutions) %>%
-  filter(year=="2018")
-
-hist(economic$direct_certified_percent, col="green", main="Directly Certified Percentage", 
-    xlab="Percentage")
-
-```
-I'll look at the ones above 40%.
-```{r}
-highPercent <- economic %>%
-  filter(direct_certified_percent > 35)
-
-highPercent %>%
-  select(institution_name, percentage=direct_certified_percent) %>%
-  arrange(percentage) %>%
-  kbl() %>%
-  kable_styling()
+qplot(ratio, ela_score, data=eogEla345MilestonesWithStudentTeacherRatio, 
+      facets=.~acdmc_lvl, 
+      ylab="ELA Developing + Proficient + Distinguished",
+      xlab="Student/Teacher Ratio") + geom_smooth(method = "lm")
 
 
 ```
-
-
 
 ```{r}
+studentTeacherRatio <- merge(enrollment %>%
+                               group_by(institution_id) %>%
+                               summarize(total = sum(count)),
+                             teachers) %>%
+  filter(elementary) %>%
+  mutate(ratio=total/count)
+enrollmentBySubgroupWithStudentTeacherRatio <- merge(enrollmentBySubgroup, studentTeacherRatio, by=c("institution_id"))
 
-lowExperience <- teacherExperienceAvg %>%
-  filter(average < 10.0)
-
-teacherSalary <- merge(lowExperience, read.csv(teachersDataFile()) %>%
-  filter(year=="2018") %>%
-  select(institution_id, avg_annual_salary, count))
-
-administratorSpend <- merge(lowExperience, read.csv(administratorsDataFile()) %>%
-  filter(year=="2018") %>%
-  select(institution_id, avg_annual_salary, count)) %>%
-  group_by(institution_id) %>%
-  summarize(totalAdministratorSpend = avg_annual_salary*count)
-
-supportPersonnelSpend <- merge(lowExperience, read.csv(supportPersonnelDataFile()) %>%
-  filter(year=="2018") %>%
-  select(institution_id, avg_annual_salary, count)) %>%
-  group_by(institution_id) %>%
-  summarize(totalSupportSpend = avg_annual_salary*count)
-
-teacherSpend <- teacherSalary %>%
-  group_by(institution_id) %>%
-  summarize(totalTeacherSpend = avg_annual_salary*count)
-
-spend <- merge(administratorSpend, merge(supportPersonnelSpend, teacherSpend)) %>%
-  mutate(totalSpend=totalAdministratorSpend+totalSupportSpend+totalTeacherSpend) %>%
-  select(institution_id, totalSpend, totalTeacherSpend)
-
-enrollment <- merge(lowExperience, read.csv(enrollmentDataFile()) %>%
-  filter(year=="2018", period=="Fall")) %>%
-  group_by(institution_id) %>%
-  summarize(total = sum(count))
-
-investmentPerStudent <- merge(spend, enrollment) %>%
-  mutate(overall_ips = totalSpend/total, teacher_ips=totalTeacherSpend/total) %>%
-  select(institution_id, overall_ips, teacher_ips)
-
-economic <- read.csv(economicDataFile()) %>%
-  filter(year=="2018")
-
-merge(merge(merge(merge(lowExperience, districtInstitutions), economic), teacherSalary), investmentPerStudent) %>%
-  select(institution_name, direct_certified_percent, average, salary=avg_annual_salary, 
-         overall_ips, teacher_ips) %>%
-  arrange(teacher_ips) %>%
-  kbl() %>%
-  kable_styling()
-
-
-```
-So the schools with a lot of economic disadvantaged students have pretty low experience levels.  What about the highest level of experience.
-```{r}
-
-highExperience <- teacherExperienceAvg %>%
-  filter(average > 16.0)
-
-teacherSalary <- merge(highExperience, read.csv(teachersDataFile()) %>%
-  filter(year=="2018") %>%
-  select(institution_id, avg_annual_salary, count))
-
-administratorSpend <- merge(highExperience, read.csv(administratorsDataFile()) %>%
-  filter(year=="2018") %>%
-  select(institution_id, avg_annual_salary, count)) %>%
-  group_by(institution_id) %>%
-  summarize(totalAdministratorSpend = avg_annual_salary*count)
-
-supportPersonnelSpend <- merge(highExperience, read.csv(supportPersonnelDataFile()) %>%
-  filter(year=="2018") %>%
-  select(institution_id, avg_annual_salary, count)) %>%
-  group_by(institution_id) %>%
-  summarize(totalSupportSpend = avg_annual_salary*count)
-
-teacherSpend <- teacherSalary %>%
-  group_by(institution_id) %>%
-  summarize(totalTeacherSpend = avg_annual_salary*count)
-
-spend <- merge(administratorSpend, merge(supportPersonnelSpend, teacherSpend)) %>%
-  mutate(totalSpend=totalAdministratorSpend+totalSupportSpend+totalTeacherSpend) %>%
-  select(institution_id, totalSpend, totalTeacherSpend)
-
-enrollment <- merge(highExperience, read.csv(enrollmentDataFile()) %>%
-  filter(year=="2018", period=="Fall")) %>%
-  group_by(institution_id) %>%
-  summarize(total = sum(count))
-
-investmentPerStudent <- merge(spend, enrollment) %>%
-  mutate(overall_ips = totalSpend/total, teacher_ips=totalTeacherSpend/total) %>%
-  select(institution_id, overall_ips, teacher_ips)
-
-economic <- read.csv(economicDataFile()) %>%
-  filter(year=="2018")
-
-merge(merge(merge(merge(highExperience, districtInstitutions), economic), teacherSalary), investmentPerStudent) %>%
-  select(institution_name, direct_certified_percent, average, avg_annual_salary, 
-         overall_ips, teacher_ips) %>%
-  arrange(teacher_ips) %>%
-  kbl() %>%
-  kable_styling()
+qplot(ratio, enroll_percent_ed, data=enrollmentBySubgroupWithStudentTeacherRatio, 
+      ylab="Percent Economically Disadvantaged",
+      xlab="Student/Teacher Ratio") + geom_smooth(method = "lm")
 
 ```
 
-So the schools with the highest levels of experience have twice that of those with the lowest levels of experience.
-Moreover, their students tend not to be economically disadvanaged.
-```{r}
-midExperience <- teacherExperienceAvg %>%
-  filter(average > 10.0, average < 15)
-
-teacherSalary <- merge(midExperience, read.csv(teachersDataFile()) %>%
-  filter(year=="2018") %>%
-  select(institution_id, avg_annual_salary, count))
-
-administratorSpend <- merge(midExperience, read.csv(administratorsDataFile()) %>%
-  filter(year=="2018") %>%
-  select(institution_id, avg_annual_salary, count)) %>%
-  group_by(institution_id) %>%
-  summarize(totalAdministratorSpend = avg_annual_salary*count)
-
-supportPersonnelSpend <- merge(midExperience, read.csv(supportPersonnelDataFile()) %>%
-  filter(year=="2018") %>%
-  select(institution_id, avg_annual_salary, count)) %>%
-  group_by(institution_id) %>%
-  summarize(totalSupportSpend = avg_annual_salary*count)
-
-teacherSpend <- teacherSalary %>%
-  group_by(institution_id) %>%
-  summarize(totalTeacherSpend = avg_annual_salary*count)
-
-spend <- merge(administratorSpend, merge(supportPersonnelSpend, teacherSpend)) %>%
-  mutate(totalSpend=totalAdministratorSpend+totalSupportSpend+totalTeacherSpend) %>%
-  select(institution_id, totalSpend, totalTeacherSpend)
-
-enrollment <- merge(midExperience, read.csv(enrollmentDataFile()) %>%
-  filter(year=="2018", period=="Fall")) %>%
-  group_by(institution_id) %>%
-  summarize(total = sum(count))
-
-investmentPerStudent <- merge(spend, enrollment) %>%
-  mutate(overall_ips = totalSpend/total, teacher_ips=totalTeacherSpend/total) %>%
-  select(institution_id, overall_ips, teacher_ips)
-
-economic <- read.csv(economicDataFile()) %>%
-  filter(year=="2018")
-
-merge(merge(merge(merge(midExperience, districtInstitutions), economic), teacherSalary), investmentPerStudent) %>%
-  select(institution_name, direct_certified_percent, average, salary=avg_annual_salary, 
-         overall_ips, teacher_ips) %>%
-  arrange(teacher_ips) %>%
-  kbl() %>%
-  kable_styling()
-
-```
+What I am seeing is that schools can control student/teacher ratio and it is 
+generally related to the percent of student population that is economically
+disadvantaged, but there is a lot of variation.  I would say too much.  On the
+other hand, teacher experience seems to be positively correlated with test
+outcomes.  I suspect schools have little control over experience.  The choice
+to move is a teacher's choice.  Nonetheless, I might be able to demonstrate that
+test_score ~ teacher_experience + student_teacher_ratio + pct_lep.
 
